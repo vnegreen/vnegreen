@@ -1,0 +1,1989 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#080C15">
+  <title>VNEGREEN - EV Super App (iOS & Android Universal Edition)</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              accent: '#00E599',
+              neon: '#17F39E',
+              cyan: '#06B6D4'
+            },
+            dark: {
+              bg: '#080C15',
+              surface: '#0E1626',
+              card: '#111827',
+              border: '#1E293B',
+              elevated: '#192237'
+            }
+          },
+          fontFamily: {
+            sans: ['Poppins', '-apple-system', 'BlinkMacSystemFont', 'Roboto', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'SF Mono', 'Roboto Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Leaflet Map Engine -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Tone.js Synthesizer for Haptic Feedback -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <!-- JSZip -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    @keyframes pulse-subtle {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+    .animate-pulse-glow { animation: pulse-subtle 2.5s infinite ease-in-out; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .leaflet-control-attribution { display: none !important; }
+    .glassmorphism {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .ev-marker-pin { transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .ev-marker-pin:hover { transform: scale(1.18) translateY(-4px); }
+    :root {
+      --sat: env(safe-area-inset-top, 0px);
+      --sab: env(safe-area-inset-bottom, 0px);
+    }
+    .safe-top { padding-top: max(var(--sat), 0.4rem); }
+    .safe-bottom { padding-bottom: max(var(--sab), 0.6rem); }
+    button, a, input, [role="button"] {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* OS-Specific Adaptive Styles */
+    .os-ios { --theme-radius: 1.5rem; }
+    .os-android { --theme-radius: 1rem; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 font-sans h-[100dvh] w-screen overflow-hidden select-none transition-colors duration-300 os-ios" id="appBody">
+
+  <!-- ================= MASTER APP CONTAINER ================= -->
+  <div class="relative w-full h-full flex flex-col overflow-hidden bg-slate-950">
+
+    <!-- ================= ADAPTIVE OS STATUS & TOP HEADER ================= -->
+    <header class="relative z-40 px-3.5 py-2 flex items-center justify-between glassmorphism bg-slate-900/90 border-b border-slate-800/80 safe-top shrink-0">
+      <div class="flex items-center gap-2.5">
+        <!-- Logo Brand -->
+        <div onclick="navigateTo('explore')" class="cursor-pointer flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 via-brand-500 to-brand-accent flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/25">
+            <i class="fa-solid fa-bolt text-sm"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5 leading-none">
+              <span class="font-extrabold text-sm sm:text-base tracking-tight bg-gradient-to-r from-emerald-400 to-brand-accent bg-clip-text text-transparent">VNEGREEN</span>
+              <span id="osBadge" class="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-brand-accent border border-emerald-500/30">iOS PRO</span>
+            </div>
+            <p id="topSubtitle" class="text-[9px] text-slate-400 mt-0.5">350kW SuperCharge • Toàn quốc</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Controls -->
+      <div class="flex items-center gap-1.5">
+        <!-- OS Switcher (iOS vs Android Style) -->
+        <button onclick="toggleOsMode()" id="osToggleBtn" title="Chuyển chế độ iOS / Android" class="px-2 py-1 rounded-lg border border-slate-700 bg-slate-800/80 text-[10px] font-bold text-slate-300 hover:text-brand-accent flex items-center gap-1">
+          <i id="osIcon" class="fa-brands fa-apple text-xs"></i>
+          <span id="osLabel" class="hidden sm:inline">iOS Style</span>
+        </button>
+
+        <!-- Guide Book Button -->
+        <button onclick="openGuideModal()" title="Cẩm nang hướng dẫn" class="px-2 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-brand-accent text-xs font-semibold flex items-center gap-1 transition-all">
+          <i class="fa-solid fa-graduation-cap text-xs"></i>
+          <span class="hidden md:inline text-[10px]">Cẩm nang</span>
+        </button>
+
+        <!-- Current Vehicle Selector -->
+        <button onclick="navigateTo('nfc')" title="Đổi xe / Quét NFC" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium flex items-center gap-1.5 transition-all">
+          <i class="fa-solid fa-car text-brand-accent text-[11px]"></i>
+          <span id="topVehicleLabel" class="max-w-[85px] sm:max-w-[110px] truncate text-[11px]">VinFast VF 9</span>
+          <span id="topBatteryLabel" class="text-[10px] text-emerald-400 font-mono font-bold">82%</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button onclick="toggleTheme()" title="Sáng / Tối" class="w-7 h-7 rounded-lg border border-slate-700 bg-slate-800/80 flex items-center justify-center text-slate-300 hover:text-white">
+          <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- ================= MAIN SCREEN CONTAINER ================= -->
+    <div class="relative flex-1 w-full h-full overflow-hidden">
+
+      <!-- ================= SCREEN 1: EXPLORE / REAL-TIME MAP ================= -->
+      <div id="screen-explore" class="screen-view h-full w-full flex flex-col relative overflow-hidden">
+        <!-- Floating Search & Filter Bar -->
+        <div class="absolute top-2.5 inset-x-3 sm:inset-x-6 max-w-xl mx-auto z-[500] space-y-1.5">
+          <!-- Search box -->
+          <div class="relative flex items-center shadow-2xl rounded-2xl overflow-hidden glassmorphism bg-slate-900/90 border border-slate-700/80">
+            <i class="fa-solid fa-magnifying-glass text-slate-400 pl-3.5 pr-2 text-xs"></i>
+            <input id="stationSearchInput" type="text" oninput="handleStationSearch(this.value)" placeholder="Tìm trạm sạc: Hà Nội, Landmark 81, Gia Lai..." class="w-full py-2.5 pr-8 bg-transparent text-xs text-slate-100 focus:outline-none placeholder-slate-400 font-medium" />
+            <button onclick="triggerVoiceSearch()" class="pr-3 text-slate-400 hover:text-brand-accent transition-colors">
+              <i class="fa-solid fa-microphone text-xs"></i>
+            </button>
+          </div>
+
+          <!-- Smart Category Filter Chips -->
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button onclick="filterStations('all', event)" class="filter-chip active px-3 py-1 rounded-full text-[10px] font-bold transition-all shadow-md bg-emerald-500 text-slate-950 shrink-0">
+              Tất cả trạm
+            </button>
+            <button onclick="filterStations('fast', event)" class="filter-chip px-3 py-1 rounded-full text-[10px] font-medium transition-all shadow-md glassmorphism bg-slate-900/85 border border-slate-700 text-slate-300 hover:border-emerald-500 shrink-0">
+              <i class="fa-solid fa-bolt text-emerald-400 mr-1"></i> Siêu nhanh > 150kW
+            </button>
+            <button onclick="filterStations('available', event)" class="filter-chip px-3 py-1 rounded-full text-[10px] font-medium transition-all shadow-md glassmorphism bg-slate-900/85 border border-slate-700 text-slate-300 hover:border-emerald-500 shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1"></span> Cổng trống
+            </button>
+            <button onclick="filterStations('region_hanoi', event)" class="filter-chip px-3 py-1 rounded-full text-[10px] font-medium transition-all shadow-md glassmorphism bg-slate-900/85 border border-slate-700 text-slate-300 hover:border-emerald-500 shrink-0">
+              <i class="fa-solid fa-city text-sky-400 mr-1"></i> Hà Nội
+            </button>
+            <button onclick="filterStations('region_danang', event)" class="filter-chip px-3 py-1 rounded-full text-[10px] font-medium transition-all shadow-md glassmorphism bg-slate-900/85 border border-slate-700 text-slate-300 hover:border-emerald-500 shrink-0">
+              <i class="fa-solid fa-umbrella-beach text-blue-400 mr-1"></i> Đà Nẵng
+            </button>
+            <button onclick="filterStations('region_gialai', event)" class="filter-chip px-3 py-1 rounded-full text-[10px] font-medium transition-all shadow-md glassmorphism bg-slate-900/85 border border-slate-700 text-slate-300 hover:border-emerald-500 shrink-0">
+              <i class="fa-solid fa-mountain text-amber-400 mr-1"></i> Tây Nguyên / Gia Lai
+            </button>
+            <button onclick="filterStations('ccs2', event)" class="filter-chip px-3 py-1 rounded-full text-[10px] font-medium transition-all shadow-md glassmorphism bg-slate-900/85 border border-slate-700 text-slate-300 hover:border-emerald-500 shrink-0">
+              Chuẩn CCS 2
+            </button>
+          </div>
+        </div>
+
+        <!-- Leaflet Map Container -->
+        <div id="map" class="w-full h-full z-0"></div>
+
+        <!-- Quick Telematics Status Pill -->
+        <div onclick="navigateTo('control')" class="cursor-pointer absolute top-20 left-3 z-[400] glassmorphism bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded-full shadow-xl flex items-center gap-1.5 text-xs hover:border-brand-accent transition-all">
+          <i class="fa-solid fa-car text-brand-accent text-xs"></i>
+          <span id="mapVehicleName" class="font-bold text-[10px] text-white">VinFast VF 9</span>
+          <span id="mapVehicleBattery" class="text-[9px] text-emerald-400 font-mono font-bold">| 82% (485 km)</span>
+          <i class="fa-solid fa-chevron-right text-[8px] text-slate-400 ml-0.5"></i>
+        </div>
+
+        <!-- GPS Recenter Button -->
+        <button onclick="recenterGPS()" class="absolute bottom-24 right-3 z-[400] w-10 h-10 rounded-2xl glassmorphism bg-slate-900/90 border border-slate-700 text-white shadow-xl flex items-center justify-center hover:text-brand-accent transition-all active:scale-95">
+          <i class="fa-solid fa-location-crosshairs text-sm"></i>
+        </button>
+
+        <!-- Station Drawer Quick Card -->
+        <div id="stationQuickCard" class="absolute bottom-16 inset-x-2 sm:inset-x-4 max-w-lg mx-auto z-[400] glassmorphism bg-slate-900/95 rounded-3xl p-3.5 sm:p-4 border border-slate-700 shadow-2xl transition-all duration-300 transform translate-y-0">
+          <div class="w-8 h-1 bg-slate-700 rounded-full mx-auto mb-2"></div>
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span id="cardSpeedBadge" class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-brand-accent border border-emerald-500/30">
+                  350 kW Ultra
+                </span>
+                <span id="cardAvailablePorts" class="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Còn 4/6 cổng trống
+                </span>
+              </div>
+              <h3 id="cardStationName" class="font-extrabold text-sm text-white mt-1">Trạm VNEGREEN Hub Landmark 81</h3>
+              <p id="cardStationAddress" class="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                <i class="fa-solid fa-location-dot text-emerald-400 text-[10px]"></i> 720A Điện Biên Phủ, Bình Thạnh • 1.4 km
+              </p>
+            </div>
+            <button onclick="bookmarkStation()" class="text-slate-400 hover:text-amber-400 p-1 transition-colors">
+              <i id="bookmarkIcon" class="fa-regular fa-bookmark text-base"></i>
+            </button>
+          </div>
+
+          <!-- Pricing & Rating Grid -->
+          <div class="grid grid-cols-3 gap-2 py-2 border-y border-slate-800 my-2 text-center text-xs">
+            <div>
+              <div class="text-[9px] text-slate-400">Đơn giá</div>
+              <div id="cardRate" class="font-bold text-slate-200 text-xs">3.850đ<span class="text-[8px] font-normal text-slate-400">/kWh</span></div>
+            </div>
+            <div>
+              <div class="text-[9px] text-slate-400">Hoạt động</div>
+              <div class="font-bold text-slate-200 text-xs">24/7 Mở cửa</div>
+            </div>
+            <div>
+              <div class="text-[9px] text-slate-400">Đánh giá</div>
+              <div id="cardRating" class="font-bold text-amber-400 text-xs flex items-center justify-center gap-1">
+                <i class="fa-solid fa-star text-[9px]"></i> 4.9 (184)
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center gap-2">
+            <button onclick="startNavigation()" class="flex-1 py-2 px-3 rounded-xl border border-slate-700 bg-slate-800/80 text-slate-200 text-xs font-semibold hover:bg-slate-700 flex items-center justify-center gap-1.5 transition-colors">
+              <i class="fa-solid fa-diamond-turn-right text-emerald-400"></i> Chỉ đường
+            </button>
+            <button onclick="navigateTo('detail')" class="flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-brand-500 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition-all">
+              Xem chi tiết <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SCREEN 2: STATION DETAIL & CONNECTOR SELECTOR ================= -->
+      <div id="screen-detail" class="screen-view hidden h-full flex flex-col overflow-y-auto no-scrollbar pb-20 max-w-2xl mx-auto">
+        <div class="relative h-44 sm:h-52 bg-slate-900 shrink-0">
+          <img id="detailHeroImage" src="https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=800&q=80" alt="EV Station" class="w-full h-full object-cover opacity-60">
+          <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+
+          <div class="absolute top-2.5 inset-x-3 flex items-center justify-between">
+            <button onclick="navigateTo('explore')" class="w-8 h-8 rounded-full glassmorphism bg-slate-900/80 text-white flex items-center justify-center shadow">
+              <i class="fa-solid fa-arrow-left text-xs"></i>
+            </button>
+            <div class="flex items-center gap-1.5">
+              <button onclick="showToast('Đã sao chép liên kết chia sẻ trạm sạc!')" class="w-8 h-8 rounded-full glassmorphism bg-slate-900/80 text-white flex items-center justify-center shadow">
+                <i class="fa-solid fa-share-nodes text-xs"></i>
+              </button>
+              <button onclick="bookmarkStation()" class="w-8 h-8 rounded-full glassmorphism bg-slate-900/80 text-amber-400 flex items-center justify-center shadow">
+                <i class="fa-solid fa-bookmark text-xs"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="absolute bottom-2.5 left-3 right-3">
+            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-bold">VNEGREEN Hub Siêu Sạc</span>
+            <h2 id="detailStationTitle" class="text-base sm:text-lg font-extrabold text-white mt-1">Trạm Landmark 81 Hub</h2>
+            <p id="detailStationAddress" class="text-[11px] text-slate-300 flex items-center gap-1 mt-0.5">
+              <i class="fa-solid fa-location-dot text-brand-accent"></i> 720A Điện Biên Phủ, Phường 22, Bình Thạnh
+            </p>
+          </div>
+        </div>
+
+        <div class="p-3.5 sm:p-5 space-y-3.5">
+          <!-- Amenities -->
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Tiện ích trạm sạc</label>
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <span class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[10px] flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-mug-hot text-amber-400"></i> Cafe Highlands
+              </span>
+              <span class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[10px] flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-wifi text-sky-400"></i> Wi-Fi 6 Miễn phí
+              </span>
+              <span class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[10px] flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-restroom text-indigo-400"></i> WC 5 sao
+              </span>
+              <span class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800 text-[10px] flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-shield-halved text-emerald-400"></i> An ninh 24/7
+              </span>
+            </div>
+          </div>
+
+          <!-- Connector List -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Chọn cổng sạc khả dụng</label>
+              <span class="text-[10px] text-emerald-400 font-semibold">4 cổng sẵn sàng</span>
+            </div>
+
+            <div class="space-y-2">
+              <!-- Port 1: 350kW DC -->
+              <div onclick="selectConnector('port-1', 'CCS 2 Ultra-Fast', '350 kW', 3850)" id="connector-port-1" class="connector-item cursor-pointer p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-500/10 transition-all">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-base">
+                      <i class="fa-solid fa-plug"></i>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-xs text-white">Cổng 01 • CCS 2</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950 font-bold font-mono">350 kW DC</span>
+                      </div>
+                      <p class="text-[10px] text-slate-400 mt-0.5">3.850đ / kWh • ISO 15118 Auto</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Sẵn sàng
+                    </span>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Trụ A-01</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Port 2: 180kW DC -->
+              <div onclick="selectConnector('port-2', 'CCS 2 Fast Charge', '180 kW', 3500)" id="connector-port-2" class="connector-item cursor-pointer p-3 rounded-2xl border border-slate-800 bg-slate-900/80 hover:border-emerald-500/60 transition-all">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-base">
+                      <i class="fa-solid fa-plug"></i>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-xs text-white">Cổng 02 • CCS 2</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-sky-500 text-white font-bold font-mono">180 kW DC</span>
+                      </div>
+                      <p class="text-[10px] text-slate-400 mt-0.5">3.500đ / kWh • Đa hãng xe</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Sẵn sàng
+                    </span>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Trụ A-02</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Port 3: 22kW AC -->
+              <div onclick="selectConnector('port-3', 'Type 2 Normal AC', '22 kW', 2800)" id="connector-port-3" class="connector-item cursor-pointer p-3 rounded-2xl border border-slate-800 bg-slate-900/80 hover:border-emerald-500/60 transition-all">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center text-base">
+                      <i class="fa-solid fa-plug-circle-bolt"></i>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-xs text-white">Cổng 03 • Type 2</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-600 text-white font-bold font-mono">22 kW AC</span>
+                      </div>
+                      <p class="text-[10px] text-slate-400 mt-0.5">2.800đ / kWh • Sạc chậm qua đêm</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Sẵn sàng
+                    </span>
+                    <div class="text-[9px] text-slate-400 mt-0.5">Trụ B-01</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Action Buttons -->
+          <div class="pt-2 flex items-center gap-2">
+            <button onclick="navigateTo('booking')" class="flex-1 py-3 rounded-xl border border-emerald-500/60 text-brand-accent text-xs font-semibold hover:bg-emerald-500/10 transition-colors">
+              <i class="fa-regular fa-clock mr-1"></i> Đặt lịch giữ chỗ
+            </button>
+            <button onclick="startLiveChargingSession()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-brand-500 text-slate-950 text-xs font-bold shadow-lg shadow-emerald-500/30 transition-all flex items-center justify-center gap-1.5">
+              <i class="fa-solid fa-bolt"></i> Bắt đầu sạc ngay
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SCREEN 3: LIVE CHARGING TELEMETRY (800V ARCHITECTURE) ================= -->
+      <div id="screen-charging" class="screen-view hidden h-full flex flex-col p-3.5 sm:p-5 overflow-y-auto no-scrollbar pb-20 justify-between max-w-xl mx-auto">
+        <div>
+          <!-- Top Bar -->
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <button onclick="navigateTo('detail')" class="w-7 h-7 rounded-full border border-slate-800 flex items-center justify-center text-slate-300">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+              </button>
+              <div>
+                <h3 id="liveStationTitle" class="font-bold text-xs text-white">Trạm Landmark 81 Hub</h3>
+                <p id="chargingPortSub" class="text-[10px] text-slate-400">Trụ A-01 • CCS 2 (350kW)</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Live 800V
+            </span>
+          </div>
+
+          <!-- Cyber Dial Gauge -->
+          <div class="relative w-56 h-56 mx-auto my-1 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full bg-emerald-500/15 blur-2xl animate-pulse"></div>
+            <svg class="w-full h-full -rotate-90 transform" viewBox="0 0 160 160">
+              <circle cx="80" cy="80" r="66" stroke="currentColor" stroke-width="10" fill="transparent" class="text-slate-800" />
+              <circle id="chargingProgressRing" cx="80" cy="80" r="66" stroke="url(#vneLiveDialGradient)" stroke-width="10" stroke-dasharray="415" stroke-dashoffset="75" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out" />
+              <defs>
+                <linearGradient id="vneLiveDialGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#00E599" />
+                  <stop offset="100%" stop-color="#059669" />
+                </linearGradient>
+              </defs>
+            </svg>
+
+            <div class="absolute flex flex-col items-center justify-center text-center">
+              <i class="fa-solid fa-bolt text-brand-accent text-lg mb-0.5 animate-bounce"></i>
+              <div class="flex items-baseline">
+                <span id="liveBatteryPercent" class="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white">82</span>
+                <span class="text-base font-bold text-brand-accent ml-0.5">%</span>
+              </div>
+              <span id="liveRangeAdded" class="text-[10px] text-slate-300 font-medium mt-0.5">485 km • +78 km</span>
+              <div class="mt-1 px-2 py-0.5 rounded-full bg-slate-800 text-[9px] text-slate-400 font-mono">
+                Mục tiêu: 95%
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Waveform Power Graph -->
+          <div class="glassmorphism bg-slate-900/80 border border-slate-800 rounded-2xl p-2.5 my-2">
+            <div class="flex items-center justify-between text-[10px] mb-1">
+              <span class="text-slate-400">Công suất tức thời (Power Curve)</span>
+              <span class="font-mono font-bold text-brand-accent" id="livePowerWatt">215.4 kW</span>
+            </div>
+            <canvas id="livePowerCanvas" class="w-full h-10"></canvas>
+          </div>
+
+          <!-- Metrics 4-Grid -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[9px] text-slate-400 flex items-center gap-1">
+                <i class="fa-regular fa-clock text-emerald-400"></i> Thời gian còn lại
+              </div>
+              <div id="liveRemainingTime" class="font-mono font-bold text-xs sm:text-sm text-white mt-0.5">14 phút</div>
+              <div class="text-[9px] text-slate-400">Đã sạc 21m 40s</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[9px] text-slate-400 flex items-center gap-1">
+                <i class="fa-solid fa-battery-half text-emerald-400"></i> Điện năng nạp
+              </div>
+              <div id="liveEnergyDelivered" class="font-mono font-bold text-xs sm:text-sm text-white mt-0.5">28.4 kWh</div>
+              <div class="text-[9px] text-slate-400">780V • 276A (DC)</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[9px] text-slate-400 flex items-center gap-1">
+                <i class="fa-solid fa-receipt text-emerald-400"></i> Chi phí tạm tính
+              </div>
+              <div id="liveCostEstimated" class="font-mono font-bold text-xs sm:text-sm text-white mt-0.5">109.340 đ</div>
+              <div class="text-[9px] text-slate-400">Đơn giá: 3.850đ/kWh</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800">
+              <div class="text-[9px] text-slate-400 flex items-center gap-1">
+                <i class="fa-solid fa-leaf text-emerald-400"></i> Giảm CO₂
+              </div>
+              <div class="font-mono font-bold text-xs sm:text-sm text-emerald-400 mt-0.5">-22.6 kg</div>
+              <div class="text-[9px] text-slate-400">Năng lượng xanh 100%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="space-y-2 pt-2">
+          <div class="flex items-center gap-2">
+            <button onclick="toggleChargeLock()" id="chargeLockBtn" class="py-2 px-3 rounded-xl border border-slate-800 bg-slate-900 text-xs font-semibold flex items-center justify-center gap-1 text-slate-200">
+              <i class="fa-solid fa-lock text-brand-accent"></i> <span id="lockBtnText">Khóa đầu cắm</span>
+            </button>
+            <button onclick="showToast('Thiết lập giới hạn sạc tối ưu: 90% SoC')" class="py-2 px-3 rounded-xl border border-slate-800 bg-slate-900 text-xs font-semibold flex items-center justify-center gap-1 text-slate-200 flex-1">
+              <i class="fa-solid fa-sliders text-brand-accent"></i> Giới hạn: 90%
+            </button>
+          </div>
+          <button onclick="stopChargingSession()" class="w-full py-2.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-lg shadow-rose-500/25 transition-all flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-power-off"></i> Dừng phiên sạc & Xuất hóa đơn
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= SCREEN 4: CHARGING RECEIPT ================= -->
+      <div id="screen-receipt" class="screen-view hidden h-full flex flex-col p-4 sm:p-6 overflow-y-auto no-scrollbar pb-20 justify-between max-w-xl mx-auto">
+        <div class="space-y-3">
+          <div class="text-center pt-2">
+            <div class="w-12 h-12 rounded-full bg-emerald-500/20 text-brand-accent flex items-center justify-center text-xl mx-auto mb-1.5">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h3 class="font-extrabold text-base text-white">Phiên sạc hoàn tất!</h3>
+            <p class="text-[11px] text-slate-400">Mã hóa đơn: #VNE-20261008-889</p>
+          </div>
+
+          <div class="glassmorphism bg-slate-900/90 rounded-2xl p-4 border border-slate-800 space-y-2.5 text-xs">
+            <div class="flex justify-between text-slate-400">
+              <span>Trạm sạc:</span>
+              <span id="receiptStationText" class="font-semibold text-slate-200">Landmark 81 SuperHub</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Phương tiện:</span>
+              <span id="receiptVehicleText" class="font-semibold text-slate-200">VinFast VF 9 (51K-999.88)</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Điện năng nạp:</span>
+              <span class="font-mono font-semibold text-slate-200">28.4 kWh</span>
+            </div>
+            <div class="flex justify-between text-slate-400">
+              <span>Thời gian nạp:</span>
+              <span class="font-semibold text-slate-200">21 phút 40 giây</span>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex justify-between font-bold text-sm text-white">
+              <span>Tổng thanh toán:</span>
+              <span class="text-brand-accent font-mono">109.340 đ</span>
+            </div>
+          </div>
+
+          <!-- Eco Points -->
+          <div class="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-brand-accent/15 border border-emerald-500/30 flex items-center justify-between">
+            <div>
+              <span class="text-[9px] font-bold text-brand-accent uppercase">Tín chỉ Carbon VNEGREEN</span>
+              <h4 class="font-extrabold text-sm text-white mt-0.5">+110 Điểm thưởng</h4>
+              <p class="text-[10px] text-slate-400">Đã giảm thiểu 22.6kg khí thải CO₂</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-lg">
+              <i class="fa-solid fa-seedling"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-3">
+          <button onclick="navigateTo('control')" class="w-full py-3 rounded-2xl bg-emerald-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-car"></i> Mở điều khiển xe từ xa
+          </button>
+          <button onclick="navigateTo('explore')" class="w-full py-3 rounded-2xl border border-slate-700 bg-slate-900 text-slate-300 font-semibold text-xs">
+            Tìm trạm sạc tiếp theo
+          </button>
+        </div>
+      </div>
+
+      <!-- ================= SCREEN 5: CONNECTED CAR TELEMATICS HUB ================= -->
+      <div id="screen-control" class="screen-view hidden h-full flex flex-col p-3.5 sm:p-5 overflow-y-auto no-scrollbar pb-20 justify-between max-w-xl mx-auto">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-sm sm:text-base text-white">Điều khiển xe từ xa</h3>
+              <p class="text-[10px] text-slate-400">Kết nối CAN Bus & Telematics thời gian thực</p>
+            </div>
+            <button onclick="navigateTo('nfc')" class="px-2.5 py-1 rounded-xl bg-emerald-500/15 text-brand-accent font-bold text-[10px] border border-emerald-500/30 flex items-center gap-1">
+              <i class="fa-solid fa-rotate"></i> Đổi xe NFC
+            </button>
+          </div>
+
+          <!-- Car Control Card -->
+          <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 p-4 text-white shadow-2xl border border-slate-700">
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500 text-slate-950">
+                  CAN-Bus Online
+                </span>
+                <h4 id="ctrlVehicleName" class="text-base font-extrabold mt-1">VinFast VF 9 Plus</h4>
+                <p id="ctrlLicensePlate" class="text-[10px] text-slate-400">Biển số: 51K-999.88 • Pin 123 kWh</p>
+              </div>
+              <div class="text-right">
+                <div id="ctrlBatteryPercent" class="text-2xl sm:text-3xl font-black font-mono text-brand-accent">82%</div>
+                <div id="ctrlRangeKm" class="text-[10px] text-slate-400">Ước tính 485 km</div>
+              </div>
+            </div>
+
+            <!-- 6 Quick Telematics Actions -->
+            <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-700/80 text-center">
+              <button onclick="toggleCarLock()" class="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                <span id="carLockIcon" class="text-sm text-brand-accent">🔒</span>
+                <span id="carLockLabel" class="text-[9px] font-medium">Khóa cửa</span>
+              </button>
+              <button onclick="toggleAcClimate()" class="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                <span id="carAcIcon" class="text-sm text-sky-400">❄️</span>
+                <span id="carAcLabel" class="text-[9px] font-medium">21°C Bật</span>
+              </button>
+              <button onclick="triggerCarHorn()" class="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                <span class="text-sm text-amber-400">📢</span>
+                <span class="text-[9px] font-medium">Còi/Đèn</span>
+              </button>
+              <button onclick="triggerOpenTrunk()" class="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                <span class="text-sm text-purple-400">🚗</span>
+                <span class="text-[9px] font-medium">Mở cốp</span>
+              </button>
+              <button onclick="triggerOpenChargePort()" class="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                <span class="text-sm text-emerald-400">🔌</span>
+                <span class="text-[9px] font-medium">Mở cổng sạc</span>
+              </button>
+              <button onclick="toggleSentryMode()" class="p-2.5 rounded-2xl bg-white/10 hover:bg-white/20 transition-all flex flex-col items-center justify-center gap-1 active:scale-95">
+                <span id="sentryIcon" class="text-sm text-rose-400">📷</span>
+                <span id="sentryLabel" class="text-[9px] font-medium">Sentry 360°</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Thermal Warning Banner (shows when temp > 40°C) -->
+          <div id="thermalWarningBanner" class="hidden p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-[10px] flex items-center gap-2">
+            <i class="fa-solid fa-temperature-high text-rose-400 text-sm animate-pulse"></i>
+            <div>
+              <span class="font-bold">CẢNH BÁO NHIỆT ĐỘ CAO!</span> Pin đang ở <span id="thermalTempValue">42°C</span> — Đang khởi động hệ thống làm mát khẩn cấp BMS...
+            </div>
+          </div>
+
+          <!-- Live Sensors Grid -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <!-- TPMS Panel -->
+            <div class="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1">
+              <div class="text-[9px] text-slate-400 flex items-center justify-between">
+                <span>Áp suất lốp (TPMS)</span>
+                <button onclick="deflateTPMS()" class="text-[9px] text-amber-400 font-bold hover:text-amber-300">Xả khí</button>
+              </div>
+              <div class="grid grid-cols-2 gap-1 text-center">
+                <div class="rounded-lg bg-slate-800 px-1.5 py-1">
+                  <div class="text-[8px] text-slate-400">TL</div>
+                  <div id="tpmsFL" class="font-mono font-bold text-[10px] text-emerald-400">2.4</div>
+                </div>
+                <div class="rounded-lg bg-slate-800 px-1.5 py-1">
+                  <div class="text-[8px] text-slate-400">TR</div>
+                  <div id="tpmsFR" class="font-mono font-bold text-[10px] text-emerald-400">2.4</div>
+                </div>
+                <div class="rounded-lg bg-slate-800 px-1.5 py-1">
+                  <div class="text-[8px] text-slate-400">HL</div>
+                  <div id="tpmsRL" class="font-mono font-bold text-[10px] text-emerald-400">2.3</div>
+                </div>
+                <div class="rounded-lg bg-slate-800 px-1.5 py-1">
+                  <div class="text-[8px] text-slate-400">HR</div>
+                  <div id="tpmsRR" class="font-mono font-bold text-[10px] text-emerald-400">2.3</div>
+                </div>
+              </div>
+            </div>
+            <!-- Battery Thermal Panel -->
+            <div class="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1.5">
+              <div class="text-[9px] text-slate-400">Nhiệt độ bộ pin</div>
+              <div id="batteryTempDisplay" class="font-bold text-xs sm:text-sm text-white">28.5 °C</div>
+              <div id="batteryTempStatus" class="text-[9px] text-emerald-400">● Hệ thống tản nhiệt tối ưu</div>
+              <!-- Mini thermal bar -->
+              <div class="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden mt-1">
+                <div id="thermalBar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-700" style="width: 38%"></div>
+              </div>
+              <div class="text-[8px] text-slate-500 flex justify-between">
+                <span>0°C</span><span>75°C</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sentry Mode 360° Panel -->
+          <div id="sentryModePanel" class="hidden p-3 rounded-2xl bg-slate-900 border border-rose-500/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
+                <span class="font-bold text-xs text-rose-300">Sentry Mode 360° — ĐANG HOẠT ĐỘNG</span>
+              </div>
+              <button onclick="toggleSentryMode()" class="text-[9px] text-slate-400 hover:text-rose-400">Tắt</button>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 text-center text-[9px] text-slate-400">
+              <div class="rounded-xl bg-slate-800 p-2"><i class="fa-solid fa-video text-sky-400 text-xs mb-0.5 block"></i>Camera Trước</div>
+              <div class="rounded-xl bg-rose-500/10 p-2 border border-rose-500/30"><i class="fa-solid fa-video text-rose-400 text-xs mb-0.5 block"></i><span class="text-rose-300 font-bold">CHỦ ĐỘNG</span></div>
+              <div class="rounded-xl bg-slate-800 p-2"><i class="fa-solid fa-video text-sky-400 text-xs mb-0.5 block"></i>Camera Sau</div>
+            </div>
+            <div class="text-[9px] text-slate-400">Phát hiện chuyển động trong bán kính 5m. Ghi lại vào bộ nhớ nội bộ 128GB.</div>
+          </div>
+        </div>
+
+        <button onclick="navigateTo('charging')" class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-brand-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 mt-2">
+          <i class="fa-solid fa-bolt"></i> Mở màn hình sạc Live 800V
+        </button>
+      </div>
+
+      <!-- ================= SCREEN 6: ADVANCE RESERVATION ================= -->
+      <div id="screen-booking" class="screen-view hidden h-full flex flex-col p-3.5 sm:p-5 overflow-y-auto no-scrollbar pb-20 justify-between max-w-xl mx-auto">
+        <div class="space-y-3">
+          <div class="flex items-center gap-2">
+            <button onclick="navigateTo('detail')" class="w-7 h-7 rounded-full border border-slate-800 flex items-center justify-center text-slate-300">
+              <i class="fa-solid fa-arrow-left text-xs"></i>
+            </button>
+            <div>
+              <h3 class="font-bold text-sm sm:text-base text-white">Đặt trước vị trí trụ sạc</h3>
+              <p class="text-[10px] text-slate-400">Giữ chỗ trước 15 phút tránh xếp hàng</p>
+            </div>
+          </div>
+
+          <div class="glassmorphism bg-slate-900 p-3.5 rounded-2xl border border-slate-800">
+            <div class="flex items-center gap-2.5">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-brand-accent flex items-center justify-center text-xl shrink-0">
+                <i class="fa-solid fa-charging-station"></i>
+              </div>
+              <div>
+                <h4 id="bookingStationName" class="font-bold text-xs text-white">Trạm Landmark 81 • Trụ A-01</h4>
+                <p class="text-[10px] text-slate-400">Cổng CCS 2 • 350 kW DC</p>
+                <span id="bookingVehicleSub" class="text-[9px] text-brand-accent font-medium">VinFast VF 9 (51K-999.88)</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Khung giờ đặt chỗ</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button class="py-2 rounded-xl border border-emerald-500 bg-emerald-500 text-slate-950 font-bold text-xs">
+                10:00 - 10:45
+              </button>
+              <button class="py-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 text-xs">
+                11:00 - 11:45
+              </button>
+              <button class="py-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 text-xs">
+                13:30 - 14:15
+              </button>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px]">
+            <i class="fa-solid fa-circle-info mr-1"></i> Trạm sẽ khóa cổng sạc độc quyền cho xe của bạn trong 15 phút kể từ khung giờ hẹn.
+          </div>
+        </div>
+
+        <button onclick="confirmBooking()" class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-brand-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5">
+          <i class="fa-regular fa-calendar-check"></i> Xác nhận đặt trước trụ sạc
+        </button>
+      </div>
+
+      <!-- ================= SCREEN 7: VNEGREEN WALLET ================= -->
+      <div id="screen-wallet" class="screen-view hidden h-full flex flex-col p-3.5 sm:p-5 overflow-y-auto no-scrollbar pb-20 space-y-3 max-w-xl mx-auto">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-sm sm:text-base text-white">Ví sạc VNEGREEN</h3>
+            <p class="text-[10px] text-slate-400">Quản lý phương thức thanh toán tự động</p>
+          </div>
+          <button onclick="navigateTo('nfc')" class="w-8 h-8 rounded-full border border-slate-800 bg-slate-900 flex items-center justify-center text-slate-300">
+            <i class="fa-solid fa-nfc-directional text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Wallet Balance Card -->
+        <div class="rounded-3xl bg-slate-900 p-4 border border-slate-800 space-y-3 shadow-xl">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400 font-medium">Số dư khả dụng</span>
+            <span class="text-[9px] font-bold text-brand-accent bg-emerald-500/15 px-2 py-0.5 rounded-full border border-emerald-500/30">
+              Auto Reload: BẬT
+            </span>
+          </div>
+          <div class="flex items-baseline justify-between">
+            <div class="text-2xl sm:text-3xl font-black text-white font-mono">
+              1.250.000 <span class="text-xs font-sans text-slate-400 font-normal">VNĐ</span>
+            </div>
+            <button onclick="showToast('Mở cổng nạp tiền qua Apple Pay / Thẻ')" class="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 text-xs font-bold shadow-md shadow-emerald-500/20 active:scale-95">
+              + Nạp thêm
+            </button>
+          </div>
+
+          <!-- Payment Methods Grid -->
+          <div class="pt-2.5 border-t border-slate-800 space-y-1.5">
+            <div class="text-[9px] text-slate-400 font-semibold uppercase tracking-wide mb-1.5">Phương thức thanh toán</div>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button onclick="selectPaymentMethod('apple')" id="pm-apple" class="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-slate-800 border-2 border-slate-600 hover:border-emerald-500 active:scale-95 transition-all">
+                <i class="fa-brands fa-apple-pay text-lg text-white"></i>
+                <span class="text-[8px] text-slate-400">Apple Pay</span>
+              </button>
+              <button onclick="selectPaymentMethod('google')" id="pm-google" class="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:border-emerald-500 active:scale-95 transition-all">
+                <i class="fa-brands fa-google-pay text-lg text-white"></i>
+                <span class="text-[8px] text-slate-400">Google Pay</span>
+              </button>
+              <button onclick="selectPaymentMethod('napas')" id="pm-napas" class="flex flex-col items-center justify-center gap-1 py-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:border-emerald-500 active:scale-95 transition-all">
+                <i class="fa-solid fa-qrcode text-lg text-sky-400"></i>
+                <span class="text-[8px] text-slate-400">QR Napas 24/7</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- VNEGREEN Eco Points Card -->
+        <div class="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/15 to-teal-500/10 border border-emerald-500/30 flex items-center justify-between">
+          <div>
+            <span class="text-[9px] font-bold text-brand-accent uppercase">Tín chỉ Carbon VNEGREEN Eco Points</span>
+            <h4 class="font-extrabold text-sm text-white mt-0.5" id="ecoPointsTotal">1.840 Điểm</h4>
+            <p class="text-[10px] text-slate-400">Tương đương <span class="text-emerald-400 font-semibold">184.000 đ</span> ưu đãi sạc</p>
+            <p class="text-[9px] text-slate-500 mt-0.5">Giảm thiểu 183.4 kg CO₂ toàn bộ hành trình</p>
+          </div>
+          <div class="flex flex-col items-center gap-1.5">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-lg">
+              <i class="fa-solid fa-leaf"></i>
+            </div>
+            <button onclick="showToast('Đổi 500 Eco Points → 50.000đ sạc miễn phí!')" class="text-[8px] text-emerald-400 font-bold hover:underline">Đổi điểm</button>
+          </div>
+        </div>
+
+        <!-- Charging History -->
+        <div>
+          <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Lịch sử giao dịch</label>
+          <div class="space-y-1.5 text-xs">
+            <div class="p-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-brand-accent flex items-center justify-center">
+                  <i class="fa-solid fa-check text-xs"></i>
+                </div>
+                <div>
+                  <div class="font-bold text-white text-xs">Trạm Landmark 81 Hub</div>
+                  <div class="text-[9px] text-slate-400">Hôm nay • 28.4 kWh</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="font-mono font-bold text-white">-109.340 đ</div>
+                <div class="text-[9px] text-emerald-400 font-semibold">Thành công</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SCREEN 8: MULTI-BRAND NFC DISCOVERY ================= -->
+      <div id="screen-nfc" class="screen-view hidden h-full flex flex-col p-3.5 sm:p-5 overflow-y-auto no-scrollbar pb-20 justify-between max-w-xl mx-auto">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-extrabold text-sm sm:text-base text-white">Nhận diện NFC & Đa Hãng Xe</h3>
+              <p class="text-[10px] text-slate-400">ISO 15118-20 Plug & Charge • Tự động nhận diện</p>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-brand-accent font-bold text-[9px] border border-emerald-500/30">
+              RADAR ON
+            </span>
+          </div>
+
+          <!-- Animated NFC Radar Scanner -->
+          <div class="relative w-44 h-44 mx-auto my-1 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full border border-emerald-500/30 animate-ping"></div>
+            <div class="absolute inset-3 rounded-full border border-emerald-500/40"></div>
+            <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-600 to-brand-accent flex items-center justify-center text-slate-950 text-3xl shadow-2xl shadow-emerald-500/40 cursor-pointer active:scale-90 transition-transform" onclick="simulateNfcTap()">
+              <i class="fa-solid fa-nfc-directional animate-pulse"></i>
+            </div>
+          </div>
+
+          <div class="text-center">
+            <p class="text-xs font-bold text-white">Đưa điện thoại lại gần nắp sạc hoặc thẻ NFC</p>
+            <p class="text-[10px] text-slate-400 mt-0.5">Tự động đọc mã VIN xe điện & công suất sạc tối đa</p>
+          </div>
+
+          <!-- Multi-Brand Garage Switcher -->
+          <div>
+            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block">Garage đa thương hiệu đã ghép nối</label>
+            <div class="space-y-1.5 text-xs">
+              <div onclick="selectVehicle('vf9')" id="vehicle-card-vf9" class="p-2.5 rounded-2xl border-2 border-emerald-500 bg-emerald-500/10 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs flex items-center gap-1.5">VinFast VF 9 Plus <span class="text-[8px] text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded font-semibold">VN</span></div>
+                  <div class="text-[9px] text-slate-400">51K-999.88 • Pin 123 kWh (CCS2)</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">82%</span>
+              </div>
+              <div onclick="selectVehicle('vf3')" id="vehicle-card-vf3" class="p-2.5 rounded-2xl border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs flex items-center gap-1.5">VinFast VF 3 <span class="text-[8px] text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded font-semibold">VN</span></div>
+                  <div class="text-[9px] text-slate-400">51K-111.22 • Pin 37.5 kWh (Type 2)</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">91%</span>
+              </div>
+              <div onclick="selectVehicle('vf7')" id="vehicle-card-vf7" class="p-2.5 rounded-2xl border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs flex items-center gap-1.5">VinFast VF 7 <span class="text-[8px] text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded font-semibold">VN</span></div>
+                  <div class="text-[9px] text-slate-400">51K-555.77 • Pin 75.3 kWh (CCS2)</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">57%</span>
+              </div>
+              <div onclick="selectVehicle('taycan')" id="vehicle-card-taycan" class="p-2.5 rounded-2xl border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs">Porsche Taycan 4S</div>
+                  <div class="text-[9px] text-slate-400">51A-888.66 • Kiến trúc 800V (CCS2)</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">64%</span>
+              </div>
+              <div onclick="selectVehicle('ioniq5')" id="vehicle-card-ioniq5" class="p-2.5 rounded-2xl border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs">Hyundai Ioniq 5</div>
+                  <div class="text-[9px] text-slate-400">51G-777.33 • E-GMP Platform 800V</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">75%</span>
+              </div>
+              <div onclick="selectVehicle('tesla_y')" id="vehicle-card-tesla_y" class="p-2.5 rounded-2xl border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs">Tesla Model Y</div>
+                  <div class="text-[9px] text-slate-400">51F-123.45 • Chuẩn NACS / Adapter</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">88%</span>
+              </div>
+              <div onclick="selectVehicle('byd_seal')" id="vehicle-card-byd_seal" class="p-2.5 rounded-2xl border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs flex items-center gap-1.5">BYD Seal AWD <span class="text-[8px] text-blue-400 bg-blue-500/15 px-1.5 py-0.5 rounded font-semibold">CN</span></div>
+                  <div class="text-[9px] text-slate-400">51D-246.80 • CTB 800V • 82.56 kWh</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">70%</span>
+              </div>
+              <div onclick="selectVehicle('mercedes_eqs')" id="vehicle-card-mercedes_eqs" class="p-2.5 rounded-2xl border border-slate-800 bg-slate-900 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-white text-xs flex items-center gap-1.5">Mercedes EQS 450+ <span class="text-[8px] text-slate-300 bg-slate-700 px-1.5 py-0.5 rounded font-semibold">DE</span></div>
+                  <div class="text-[9px] text-slate-400">51B-357.90 • 107.8 kWh (CCS2 200kW)</div>
+                </div>
+                <span class="font-mono font-bold text-brand-accent text-sm">55%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="simulateNfcTap()" class="w-full py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-brand-500 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 mt-2">
+          <i class="fa-solid fa-satellite-dish"></i> Quét radar tìm xe gần nhất
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ================= BOTTOM NAVIGATION BAR ================= -->
+    <nav class="relative inset-x-0 h-16 safe-bottom bg-slate-900/95 border-t border-slate-800/80 glassmorphism flex items-center justify-around px-2 z-40 shrink-0">
+      <button onclick="navigateTo('explore')" class="bottom-nav-item flex flex-col items-center justify-center text-brand-accent transition-colors" data-nav="explore">
+        <i class="fa-solid fa-map-location-dot text-base mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Bản đồ</span>
+      </button>
+      <button onclick="navigateTo('detail')" class="bottom-nav-item flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 transition-colors" data-nav="detail">
+        <i class="fa-solid fa-charging-station text-base mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Trạm sạc</span>
+      </button>
+      <!-- Center Quick Live Charge Button -->
+      <button onclick="navigateTo('charging')" title="Phiên sạc Live" class="relative -top-3.5 w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 via-brand-500 to-brand-accent text-slate-950 font-black flex items-center justify-center shadow-xl shadow-emerald-500/40 transform hover:scale-105 active:scale-95 transition-all">
+        <i class="fa-solid fa-bolt text-lg"></i>
+      </button>
+      <button onclick="navigateTo('control')" class="bottom-nav-item flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 transition-colors" data-nav="control">
+        <i class="fa-solid fa-car text-base mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Xe của tôi</span>
+      </button>
+      <button onclick="navigateTo('wallet')" class="bottom-nav-item flex flex-col items-center justify-center text-slate-400 hover:text-slate-200 transition-colors" data-nav="wallet">
+        <i class="fa-solid fa-wallet text-base mb-0.5"></i>
+        <span class="text-[10px] font-semibold">Ví sạc</span>
+      </button>
+    </nav>
+
+    <!-- ================= FLOATING ACTION: ASK Q&A COPILOT ================= -->
+    <div class="absolute bottom-20 right-3 z-50">
+      <button onclick="toggleChatCopilot()" title="Hỏi đáp sạc xe 24/7" class="h-10 px-3 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 text-slate-950 font-bold text-xs shadow-xl shadow-emerald-500/40 border-2 border-emerald-400/80 flex items-center gap-1.5 transform hover:scale-105 active:scale-95 transition-all">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+        </span>
+        <i class="fa-solid fa-robot text-xs"></i>
+        <span class="text-[11px]">Ask Q&A</span>
+      </button>
+    </div>
+
+    <!-- ================= POPUP 1: IN-APP NEW USER GUIDE MODAL ================= -->
+    <div id="guideModal" class="hidden fixed inset-0 z-[800] bg-black/80 glassmorphism flex items-center justify-center p-3.5 transition-opacity">
+      <div class="relative w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-3xl p-5 shadow-2xl space-y-3.5 max-h-[90vh] overflow-y-auto no-scrollbar">
+        <div class="flex items-center justify-between pb-2.5 border-b border-slate-800">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-brand-accent flex items-center justify-center text-sm">
+              <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-sm text-white">Cẩm Nang Người Dùng Mới</h3>
+              <p class="text-[10px] text-slate-400">4 bước đơn giản để sạc xe điện thông minh</p>
+            </div>
+          </div>
+          <button onclick="closeGuideModal()" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="space-y-2 text-xs">
+          <div onclick="navigateTo('explore'); closeGuideModal();" class="cursor-pointer p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 hover:border-emerald-500 transition-all flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs">1</div>
+            <div>
+              <div class="font-bold text-white text-xs">Tìm trạm & lọc công suất siêu nhanh 350kW</div>
+              <p class="text-[10px] text-slate-400 mt-0.5">Lọc trạm theo khoảng cách, cổng trống tức thì và trạm siêu nhanh hỗ trợ 800V.</p>
+            </div>
+          </div>
+
+          <div onclick="navigateTo('nfc'); closeGuideModal();" class="cursor-pointer p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 hover:border-emerald-500 transition-all flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs">2</div>
+            <div>
+              <div class="font-bold text-white text-xs">Chạm thẻ NFC / ISO 15118 Plug & Charge</div>
+              <p class="text-[10px] text-slate-400 mt-0.5">Chạm điện thoại hoặc thẻ NFC vào trụ sạc, hệ thống tự động nhận diện xe và mở khóa relay nguồn.</p>
+            </div>
+          </div>
+
+          <div onclick="navigateTo('charging'); closeGuideModal();" class="cursor-pointer p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 hover:border-emerald-500 transition-all flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs">3</div>
+            <div>
+              <div class="font-bold text-white text-xs">Theo dõi tiến trình sạc Live thời gian thực</div>
+              <p class="text-[10px] text-slate-400 mt-0.5">Theo dõi đường cong công suất kW, kWh nạp và tiền điện tự động tính toán.</p>
+            </div>
+          </div>
+
+          <div onclick="navigateTo('control'); closeGuideModal();" class="cursor-pointer p-3 rounded-2xl bg-slate-800/60 border border-slate-700/80 hover:border-emerald-500 transition-all flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 font-bold flex items-center justify-center shrink-0 text-xs">4</div>
+            <div>
+              <div class="font-bold text-white text-xs">Điều khiển xe từ xa qua Telematics</div>
+              <p class="text-[10px] text-slate-400 mt-0.5">Khóa/mở xe, bật trước điều hòa 21°C và kiểm tra áp suất lốp ngay trên điện thoại.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-1 flex items-center gap-2">
+          <button onclick="closeGuideModal(); openChatCopilot();" class="flex-1 py-2.5 rounded-xl bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-1">
+            <i class="fa-solid fa-circle-question text-emerald-400"></i> Hỏi trợ lý AI
+          </button>
+          <button onclick="closeGuideModal(); navigateTo('explore');" class="flex-1 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs">
+            Bắt đầu trải nghiệm ngay
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= POPUP 2: ASK Q&A AI COPILOT CHAT ================= -->
+    <div id="chatCopilotModal" class="hidden fixed inset-0 z-[850] bg-black/80 glassmorphism flex items-end sm:items-center justify-center p-2 sm:p-4 transition-opacity">
+      <div class="relative w-full max-w-lg bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl flex flex-col h-[82vh] sm:h-[600px] overflow-hidden">
+        <div class="p-3.5 bg-slate-800/80 border-b border-slate-700/80 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="relative">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-brand-accent text-slate-950 flex items-center justify-center font-bold text-base shadow-md">
+                <i class="fa-solid fa-robot"></i>
+              </div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-slate-900 rounded-full"></span>
+            </div>
+            <div>
+              <div class="flex items-center gap-1">
+                <h4 class="font-extrabold text-xs text-white">VNEGREEN Copilot AI</h4>
+                <span class="text-[8px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-brand-accent">24/7 LIVE</span>
+              </div>
+              <p class="text-[10px] text-slate-400">Hỗ trợ kỹ thuật & trạm sạc điện thoại iOS/Android</p>
+            </div>
+          </div>
+          <button onclick="toggleChatCopilot()" class="w-7 h-7 rounded-full bg-slate-700 text-slate-300 flex items-center justify-center text-xs">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Chat Conversation Messages -->
+        <div id="chatMessagesContainer" class="flex-1 p-3.5 overflow-y-auto space-y-2.5 text-xs no-scrollbar">
+          <div class="flex items-start gap-2 max-w-[85%]">
+            <div class="w-6 h-6 rounded-lg bg-emerald-500/20 text-brand-accent flex items-center justify-center shrink-0 text-xs">
+              <i class="fa-solid fa-robot"></i>
+            </div>
+            <div class="bg-slate-800 border border-slate-700 text-slate-200 p-2.5 rounded-2xl rounded-tl-sm leading-relaxed text-[11px]">
+              Xin chào! Tôi là trợ lý sạc xe điện VNEGREEN. Bạn đang tìm trạm sạc gần nhất ở khu vực nào, hay cần tư vấn sạc siêu nhanh 350kW cho xe của mình?
+            </div>
+          </div>
+        </div>
+
+        <!-- Preset Quick Questions -->
+        <div class="p-2 bg-slate-900 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+          <button onclick="askPresetQuestion('Làm sao sạc siêu nhanh 350kW?')" class="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[9px] text-slate-300 whitespace-nowrap">
+            ⚡ Sạc 350kW trong bao lâu?
+          </button>
+          <button onclick="askPresetQuestion('Trạm sạc ở Gia Lai / Tây Nguyên ở đâu?')" class="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[9px] text-slate-300 whitespace-nowrap">
+            📍 Trạm sạc Gia Lai / Tây Nguyên?
+          </button>
+          <button onclick="askPresetQuestion('Công nghệ NFC và ISO 15118 hoạt động thế nào?')" class="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[9px] text-slate-300 whitespace-nowrap">
+            📡 Chạm thẻ NFC tự động?
+          </button>
+          <button onclick="askPresetQuestion('Biểu phí sạc điện hiện tại?')" class="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[9px] text-slate-300 whitespace-nowrap">
+            💰 Đơn giá sạc / kWh?
+          </button>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <div class="p-2.5 bg-slate-800/90 border-t border-slate-700 flex items-center gap-2 shrink-0">
+          <input id="chatInput" type="text" placeholder="Nhập câu hỏi hỗ trợ..." onkeydown="if(event.key==='Enter') sendChatMessage()" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 placeholder-slate-400" />
+          <button onclick="sendChatMessage()" class="w-9 h-9 rounded-xl bg-emerald-500 hover:bg-brand-accent text-slate-950 font-bold flex items-center justify-center transition-all active:scale-95">
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div id="phoneToast" class="absolute top-14 inset-x-3 max-w-sm mx-auto z-[999] pointer-events-none transition-all duration-300 transform -translate-y-20 opacity-0">
+      <div class="glassmorphism bg-slate-900/95 text-white px-3.5 py-2.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-2 text-xs">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-brand-accent text-sm"></i>
+        <span id="toastMsg" class="font-medium">Thông báo</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= APPLICATION LOGIC & CONTROLLER ================= -->
+  <script>
+    let currentScreen = 'explore';
+    let isDarkMode = true;
+    let isIosMode = true;
+    let sfxEnabled = true;
+    let map = null;
+    let markersLayer = null;
+    let tileLayer = null;
+    let chargingInterval = null;
+    let isCarLocked = true;
+    let isAcOn = true;
+
+    // Database Vehicles
+    const vehiclesData = {
+      vf9: {
+        name: 'VinFast VF 9 Plus',
+        plate: '51K-999.88',
+        battery: 82,
+        capacity: '123 kWh',
+        range: 485,
+        port: 'CCS 2 Ultra',
+        protocol: 'ISO 15118-20 Plug & Charge'
+      },
+      taycan: {
+        name: 'Porsche Taycan 4S',
+        plate: '51A-888.66',
+        battery: 64,
+        capacity: '93.4 kWh',
+        range: 320,
+        port: 'CCS 2 (800V High Voltage)',
+        protocol: 'ISO 15118 Auto'
+      },
+      ioniq5: {
+        name: 'Hyundai Ioniq 5',
+        plate: '51G-777.33',
+        battery: 75,
+        capacity: '77.4 kWh',
+        range: 375,
+        port: 'CCS 2 E-GMP Ultra',
+        protocol: 'EV-CAN Handshake'
+      },
+      tesla_y: {
+        name: 'Tesla Model Y',
+        plate: '51F-123.45',
+        battery: 88,
+        capacity: '78.1 kWh',
+        range: 455,
+        port: 'NACS to CCS 2 Adapter',
+        protocol: 'Tesla Auto Sync'
+      },
+      vf3: {
+        name: 'VinFast VF 3',
+        plate: '51K-111.22',
+        battery: 91,
+        capacity: '37.5 kWh',
+        range: 210,
+        port: 'Type 2 AC (11kW)',
+        protocol: 'VinFast CAN 2.0'
+      },
+      vf7: {
+        name: 'VinFast VF 7',
+        plate: '51K-555.77',
+        battery: 57,
+        capacity: '75.3 kWh',
+        range: 360,
+        port: 'CCS 2 (150kW DC)',
+        protocol: 'ISO 15118-2'
+      },
+      byd_seal: {
+        name: 'BYD Seal AWD',
+        plate: '51D-246.80',
+        battery: 70,
+        capacity: '82.56 kWh',
+        range: 420,
+        port: 'CCS 2 (150kW DC) / CTB 800V',
+        protocol: 'CHAdeMO + CCS2'
+      },
+      mercedes_eqs: {
+        name: 'Mercedes EQS 450+',
+        plate: '51B-357.90',
+        battery: 55,
+        capacity: '107.8 kWh',
+        range: 440,
+        port: 'CCS 2 Ultra (200kW DC)',
+        protocol: 'Mercedes Me Charge'
+      }
+    };
+    let currentVehicleKey = 'vf9';
+
+    let currentBattery = 82;
+    let currentEnergy = 28.4;
+    let currentCost = 109340;
+    let selectedConnector = {
+      id: 'port-1',
+      name: 'CCS 2 Ultra-Fast',
+      power: '350 kW',
+      rate: 3850
+    };
+
+    const evStations = [
+      {
+        id: 'st-1',
+        name: 'VNEGREEN Landmark 81 Hub',
+        address: '720A Điện Biên Phủ, P.22, Bình Thạnh, TP.HCM',
+        lat: 10.7951,
+        lng: 106.7218,
+        distance: '1.4 km',
+        speed: '350 kW',
+        isSuper: true,
+        available: 4,
+        total: 6,
+        rate: 3850,
+        rating: 4.9,
+        region: 'tphcm',
+        type: 'ccs2'
+      },
+      {
+        id: 'st-2',
+        name: 'VNEGREEN Diamond Plaza',
+        address: '34 Lê Duẩn, Bến Nghé, Quận 1, TP.HCM',
+        lat: 10.7812,
+        lng: 106.6988,
+        distance: '2.8 km',
+        speed: '180 kW',
+        isSuper: true,
+        available: 2,
+        total: 4,
+        rate: 3500,
+        rating: 4.8,
+        region: 'tphcm',
+        type: 'ccs2'
+      },
+      {
+        id: 'st-3',
+        name: 'VNEGREEN Hub Pleiku - Gia Lai',
+        address: '89 Hùng Vương, TP. Pleiku, Tỉnh Gia Lai',
+        lat: 13.9833,
+        lng: 108.0000,
+        distance: '3.2 km',
+        speed: '180 kW',
+        isSuper: true,
+        available: 4,
+        total: 4,
+        rate: 3500,
+        rating: 5.0,
+        region: 'gialai',
+        type: 'ccs2'
+      },
+      {
+        id: 'st-4',
+        name: 'VNEGREEN Tràng Tiền Plaza',
+        address: '24 Hai Bà Trưng, Hoàn Kiếm, Hà Nội',
+        lat: 21.0253,
+        lng: 105.8542,
+        distance: '4.5 km',
+        speed: '350 kW',
+        isSuper: true,
+        available: 3,
+        total: 6,
+        rate: 3850,
+        rating: 4.9,
+        region: 'hanoi',
+        type: 'ccs2'
+      },
+      {
+        id: 'st-5',
+        name: 'VNEGREEN Crescent Mall AC',
+        address: '101 Tôn Dật Tiên, Tân Phú, Quận 7, TP.HCM',
+        lat: 10.7294,
+        lng: 106.7196,
+        distance: '7.1 km',
+        speed: '22 kW',
+        isSuper: false,
+        available: 6,
+        total: 8,
+        rate: 2800,
+        rating: 4.6,
+        region: 'tphcm',
+        type: 'type2'
+      },
+      {
+        id: 'st-6',
+        name: 'VNEGREEN Đà Nẵng Bay Hub',
+        address: '30 Trường Sa, Mỹ An, Ngũ Hành Sơn, Đà Nẵng',
+        lat: 16.0365,
+        lng: 108.2335,
+        distance: '2.2 km',
+        speed: '350 kW',
+        isSuper: true,
+        available: 5,
+        total: 6,
+        rate: 3850,
+        rating: 4.8,
+        region: 'danang',
+        type: 'ccs2'
+      },
+      {
+        id: 'st-7',
+        name: 'VNEGREEN Đà Nẵng Airport',
+        address: 'Sân bay Đà Nẵng, Phường Hòa Thuận Tây, Q. Hải Châu',
+        lat: 16.0432,
+        lng: 108.1994,
+        distance: '3.8 km',
+        speed: '180 kW',
+        isSuper: true,
+        available: 3,
+        total: 4,
+        rate: 3500,
+        rating: 4.7,
+        region: 'danang',
+        type: 'ccs2'
+      },
+      {
+        id: 'st-8',
+        name: 'VNEGREEN Kon Tum Hub',
+        address: '15 Phan Đình Phùng, TP. Kon Tum, Tỉnh Kon Tum',
+        lat: 14.3583,
+        lng: 108.0050,
+        distance: '5.0 km',
+        speed: '60 kW',
+        isSuper: false,
+        available: 2,
+        total: 2,
+        rate: 3200,
+        rating: 4.5,
+        region: 'gialai',
+        type: 'ccs2'
+      }
+    ];
+
+    let isSentryOn = false;
+    let activePaymentMethod = 'apple';
+
+    let synth = null;
+    function initAudio() {
+      try {
+        if (!synth && window.Tone) {
+          synth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'triangle' },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+          }).toDestination();
+          synth.volume.value = -12;
+        }
+      } catch (e) {
+        console.warn('Audio Init Warning:', e);
+      }
+    }
+
+    function playSound(type) {
+      if (!sfxEnabled) return;
+      initAudio();
+      try {
+        if (window.Tone && Tone.context.state !== 'running') {
+          Tone.start();
+        }
+        if (synth) {
+          if (type === 'click') synth.triggerAttackRelease('C5', '0.05');
+          else if (type === 'startCharge') synth.triggerAttackRelease(['E4', 'G4', 'B4', 'E5'], '0.2');
+          else if (type === 'success') synth.triggerAttackRelease(['A4', 'C#5', 'E5'], '0.15');
+          else if (type === 'stop') synth.triggerAttackRelease(['G4', 'D4'], '0.15');
+          else if (type === 'chat') synth.triggerAttackRelease('F5', '0.08');
+        }
+      } catch (err) {}
+    }
+
+    function toggleOsMode() {
+      playSound('click');
+      isIosMode = !isIosMode;
+      const body = document.getElementById('appBody');
+      const badge = document.getElementById('osBadge');
+      const icon = document.getElementById('osIcon');
+      const label = document.getElementById('osLabel');
+
+      if (isIosMode) {
+        body.classList.remove('os-android');
+        body.classList.add('os-ios');
+        if (badge) badge.textContent = 'iOS PRO';
+        if (icon) icon.className = 'fa-brands fa-apple text-xs';
+        if (label) label.textContent = 'iOS Style';
+        showToast('Đã kích hoạt phong cách Cupertino iOS');
+      } else {
+        body.classList.remove('os-ios');
+        body.classList.add('os-android');
+        if (badge) badge.textContent = 'ANDROID M3';
+        if (icon) icon.className = 'fa-brands fa-android text-xs text-brand-accent';
+        if (label) label.textContent = 'Android Style';
+        showToast('Đã kích hoạt phong cách Material You Android');
+      }
+    }
+
+    function toggleTheme() {
+      playSound('click');
+      isDarkMode = !isDarkMode;
+      document.documentElement.classList.toggle('dark', isDarkMode);
+      const icon = document.getElementById('themeIcon');
+      if (icon) {
+        icon.className = isDarkMode ? 'fa-solid fa-moon text-xs' : 'fa-solid fa-sun text-xs text-amber-400';
+      }
+      updateMapTiles();
+      showToast(isDarkMode ? 'Đã bật chế độ Dark Mode' : 'Đã bật chế độ Light Mode');
+    }
+
+    function openGuideModal() {
+      playSound('click');
+      const modal = document.getElementById('guideModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeGuideModal() {
+      playSound('click');
+      const modal = document.getElementById('guideModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function toggleChatCopilot() {
+      playSound('chat');
+      const modal = document.getElementById('chatCopilotModal');
+      if (modal) modal.classList.toggle('hidden');
+    }
+
+    function openChatCopilot() {
+      const modal = document.getElementById('chatCopilotModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function appendMessage(sender, text) {
+      const container = document.getElementById('chatMessagesContainer');
+      if (!container) return;
+
+      const div = document.createElement('div');
+      div.className = sender === 'user' ? 'flex items-start justify-end gap-2 ml-auto max-w-[85%]' : 'flex items-start gap-2 max-w-[85%]';
+
+      if (sender === 'user') {
+        div.innerHTML = `
+          <div class="bg-emerald-600 text-slate-950 font-medium p-2.5 rounded-2xl rounded-tr-sm leading-relaxed text-[11px]">
+            ${text}
+          </div>
+          <div class="w-6 h-6 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center shrink-0 text-xs font-bold">
+            <i class="fa-solid fa-user"></i>
+          </div>
+        `;
+      } else {
+        div.innerHTML = `
+          <div class="w-6 h-6 rounded-lg bg-emerald-500/20 text-brand-accent flex items-center justify-center shrink-0 text-xs">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800 border border-slate-700 text-slate-200 p-2.5 rounded-2xl rounded-tl-sm leading-relaxed text-[11px]">
+            ${text}
+          </div>
+        `;
+      }
+
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function askPresetQuestion(question) {
+      playSound('click');
+      appendMessage('user', question);
+
+      setTimeout(() => {
+        let reply = '';
+        if (question.includes('350kW')) {
+          reply = '⚡ Với trụ siêu sạc 350kW kiến trúc 800V: Bạn có thể nạp pin từ 10% lên 80% chỉ trong khoảng 15 - 18 phút (VinFast VF 9, Porsche Taycan, Hyundai Ioniq 5). Hãy cắm sạc cổng CCS 2 tại Trụ A-01!';
+        } else if (question.includes('Gia Lai') || question.includes('Tây Nguyên')) {
+          reply = '📍 Trạm sạc VNEGREEN Hub Pleiku - Gia Lai tọa lạc tại số 89 Hùng Vương, TP. Pleiku. Trạm trang bị 4 cổng sạc nhanh DC 180kW hoạt động 24/7 và hỗ trợ tất cả các dòng xe điện!';
+        } else if (question.includes('NFC')) {
+          reply = '📡 VNEGREEN tích hợp chuẩn ISO 15118-20 Plug & Charge. Chỉ cần đưa điện thoại hoặc thẻ NFC lại gần cảm biến trên nắp sạc, trụ sạc sẽ tự động đọc mã định danh xe VIN và cấp nguồn an toàn!';
+        } else {
+          reply = '💰 Đơn giá hiện tại là 3.850đ / kWh cho chuẩn siêu sạc DC (150kW - 350kW), và 2.800đ / kWh cho chuẩn AC Type 2 qua đêm. Phí giữ chỗ độc quyền là 20.000đ.';
+        }
+        playSound('chat');
+        appendMessage('bot', reply);
+      }, 500);
+    }
+
+    function sendChatMessage() {
+      const input = document.getElementById('chatInput');
+      if (!input || !input.value.trim()) return;
+
+      const q = input.value.trim();
+      appendMessage('user', q);
+      input.value = '';
+      playSound('click');
+
+      setTimeout(() => {
+        let reply = `🤖 VNEGREEN Copilot đã ghi nhận câu hỏi của bạn về "${q}". Hệ thống trạm sạc đang hoạt động ổn định trên toàn quốc. Nếu cần hỗ trợ khẩn cấp, vui lòng gọi Hotline 24/7: 1900 8899.`;
+        if (q.toLowerCase().includes('giá') || q.toLowerCase().includes('tiền')) {
+          reply = '💰 Biểu phí sạc điện: 3.850đ/kWh (Trụ DC 180kW - 350kW) và 2.800đ/kWh (Trụ AC 22kW). Bạn có thể thanh toán một chạm qua Apple Pay / Google Wallet.';
+        }
+        playSound('chat');
+        appendMessage('bot', reply);
+      }, 600);
+    }
+
+    function navigateTo(screenId) {
+      playSound('click');
+      currentScreen = screenId;
+
+      document.querySelectorAll('.screen-view').forEach(el => el.classList.add('hidden'));
+      const activeEl = document.getElementById(`screen-${screenId}`);
+      if (activeEl) activeEl.classList.remove('hidden');
+
+      document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+        const matches = btn.dataset.nav === screenId;
+        btn.classList.toggle('text-brand-accent', matches);
+        btn.classList.toggle('text-slate-400', !matches);
+      });
+
+      if (screenId === 'explore' && map) {
+        setTimeout(() => map.invalidateSize(), 200);
+      }
+
+      if (screenId === 'charging') {
+        startChargingProgressTicker();
+        initCanvasPowerGraph();
+      }
+    }
+
+    function initMap() {
+      const mapEl = document.getElementById('map');
+      if (!mapEl || map) return;
+
+      map = L.map('map', { zoomControl: false }).setView([10.7951, 106.7218], 13);
+      updateMapTiles();
+      markersLayer = L.layerGroup().addTo(map);
+      renderStationMarkers(evStations);
+
+      setTimeout(() => {
+        if (map) map.invalidateSize();
+      }, 300);
+    }
+
+    function updateMapTiles() {
+      if (!map) return;
+      if (tileLayer) map.removeLayer(tileLayer);
+
+      const tileUrl = isDarkMode
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+      tileLayer = L.tileLayer(tileUrl, { subdomains: 'abcd', maxZoom: 19 }).addTo(map);
+    }
+
+    function renderStationMarkers(stationsList) {
+      if (!markersLayer) return;
+      markersLayer.clearLayers();
+
+      stationsList.forEach(st => {
+        const isSuper = st.speed.includes('350') || st.speed.includes('180');
+        const customIcon = L.divIcon({
+          className: 'custom-ev-pin',
+          html: `
+            <div class="ev-marker-pin cursor-pointer flex flex-col items-center">
+              <div class="relative px-2 py-0.5 rounded-xl shadow-lg flex items-center gap-1 font-bold text-[9px] text-white ${
+                isSuper ? 'bg-gradient-to-r from-emerald-600 to-teal-500' : 'bg-slate-800'
+              } border-2 border-slate-900">
+                <i class="fa-solid fa-bolt text-yellow-300 text-[9px]"></i>
+                <span>${st.speed}</span>
+                <span class="w-1.5 h-1.5 rounded-full ${st.available > 0 ? 'bg-emerald-300 animate-ping' : 'bg-red-400'}"></span>
+              </div>
+              <div class="w-2 h-2 bg-emerald-600 rotate-45 -mt-1 shadow-sm border-r border-b border-slate-900"></div>
+            </div>
+          `,
+          iconSize: [58, 38],
+          iconAnchor: [29, 34]
+        });
+
+        const marker = L.marker([st.lat, st.lng], { icon: customIcon });
+        marker.on('click', () => {
+          playSound('click');
+          displayStationQuickCard(st);
+        });
+        markersLayer.addLayer(marker);
+      });
+    }
+
+    function displayStationQuickCard(station) {
+      const name = document.getElementById('cardStationName');
+      const addr = document.getElementById('cardStationAddress');
+      const badge = document.getElementById('cardSpeedBadge');
+      const rate = document.getElementById('cardRate');
+      const rating = document.getElementById('cardRating');
+      const avail = document.getElementById('cardAvailablePorts');
+      const card = document.getElementById('stationQuickCard');
+
+      if (name) name.textContent = station.name;
+      if (addr) addr.innerHTML = `<i class="fa-solid fa-location-dot text-emerald-400 text-[10px]"></i> ${station.address} • ${station.distance}`;
+      if (badge) badge.textContent = `${station.speed} Ultra`;
+      if (rate) rate.innerHTML = `${station.rate.toLocaleString('vi-VN')}đ<span class="text-[8px] font-normal text-slate-400">/kWh</span>`;
+      if (rating) rating.innerHTML = `<i class="fa-solid fa-star text-[9px]"></i> ${station.rating}`;
+      if (avail) avail.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Còn ${station.available}/${station.total} cổng trống`;
+
+      const detailTitle = document.getElementById('detailStationTitle');
+      const detailAddr = document.getElementById('detailStationAddress');
+      const liveTitle = document.getElementById('liveStationTitle');
+      const receiptTitle = document.getElementById('receiptStationText');
+      const bookingTitle = document.getElementById('bookingStationName');
+
+      if (detailTitle) detailTitle.textContent = station.name;
+      if (detailAddr) detailAddr.innerHTML = `<i class="fa-solid fa-location-dot text-brand-accent"></i> ${station.address}`;
+      if (liveTitle) liveTitle.textContent = station.name;
+      if (receiptTitle) receiptTitle.textContent = station.name;
+      if (bookingTitle) bookingTitle.textContent = `${station.name} • Trụ A-01`;
+
+      if (card) {
+        card.classList.remove('translate-y-full');
+        card.classList.add('translate-y-0');
+      }
+
+      if (map) map.flyTo([station.lat, station.lng], 14, { duration: 0.8 });
+    }
+
+    function handleStationSearch(term) {
+      if (!term.trim()) {
+        renderStationMarkers(evStations);
+        return;
+      }
+      const filtered = evStations.filter(s =>
+        s.name.toLowerCase().includes(term.toLowerCase()) ||
+        s.address.toLowerCase().includes(term.toLowerCase())
+      );
+      renderStationMarkers(filtered);
+    }
+
+    function filterStations(category, e) {
+      playSound('click');
+      document.querySelectorAll('.filter-chip').forEach(btn => {
+        btn.classList.remove('bg-emerald-500', 'text-slate-950', 'font-bold');
+        btn.classList.add('glassmorphism', 'bg-slate-900/85', 'text-slate-300');
+      });
+
+      if (e && e.currentTarget) {
+        e.currentTarget.classList.add('bg-emerald-500', 'text-slate-950', 'font-bold');
+        e.currentTarget.classList.remove('glassmorphism', 'bg-slate-900/85', 'text-slate-300');
+      }
+
+      let filtered = evStations;
+      const regionFlyMap = {
+        region_gialai: { lat: 13.9833, lng: 108.0000, label: 'Tây Nguyên / Gia Lai' },
+        region_hanoi:  { lat: 21.0253, lng: 105.8542, label: 'Hà Nội' },
+        region_danang: { lat: 16.0365, lng: 108.2335, label: 'Đà Nẵng' }
+      };
+
+      if (category === 'fast') filtered = evStations.filter(s => s.isSuper);
+      else if (category === 'available') filtered = evStations.filter(s => s.available > 0);
+      else if (category === 'region_gialai') {
+        filtered = evStations.filter(s => s.region === 'gialai');
+        if (map) map.flyTo([13.9833, 108.0000], 10, { duration: 1.2 });
+      }
+      else if (category === 'region_hanoi') {
+        filtered = evStations.filter(s => s.region === 'hanoi');
+        if (map) map.flyTo([21.0253, 105.8542], 13, { duration: 1.2 });
+      }
+      else if (category === 'region_danang') {
+        filtered = evStations.filter(s => s.region === 'danang');
+        if (map) map.flyTo([16.0365, 108.2335], 13, { duration: 1.2 });
+      }
+      else if (category === 'ccs2') filtered = evStations.filter(s => s.type === 'ccs2');
+
+      renderStationMarkers(filtered);
+      showToast(`Đã lọc: ${filtered.length} trạm sạc phù hợp`);
+    }
+
+    function recenterGPS() {
+      playSound('click');
+      if (map) {
+        map.flyTo([10.7951, 106.7218], 14, { duration: 0.8 });
+        showToast('Đã định vị vị trí xe của bạn');
+      }
+    }
+
+    function selectConnector(id, name, power, rate) {
+      playSound('click');
+      selectedConnector = { id, name, power, rate };
+
+      document.querySelectorAll('.connector-item').forEach(el => {
+        el.classList.remove('border-2', 'border-emerald-500', 'bg-emerald-500/10');
+        el.classList.add('border', 'border-slate-800', 'bg-slate-900/80');
+      });
+
+      const selected = document.getElementById(`connector-${id}`);
+      if (selected) {
+        selected.classList.add('border-2', 'border-emerald-500', 'bg-emerald-500/10');
+        selected.classList.remove('border-slate-800', 'bg-slate-900/80');
+      }
+
+      const sub = document.getElementById('chargingPortSub');
+      if (sub) sub.textContent = `${name} (${power})`;
+
+      showToast(`Đã chọn: ${name} (${power})`);
+    }
+
+    function startLiveChargingSession() {
+      playSound('startCharge');
+      showToast('Đang kết nối trụ sạc & kiểm tra giao thức ISO 15118...');
+      setTimeout(() => {
+        navigateTo('charging');
+        showToast('Bắt đầu truyền dòng điện cao áp (350kW)');
+      }, 600);
+    }
+
+    function startChargingProgressTicker() {
+      if (chargingInterval) clearInterval(chargingInterval);
+
+      chargingInterval = setInterval(() => {
+        if (currentBattery < 95) {
+          currentBattery += 0.2;
+          currentEnergy += 0.15;
+          currentCost += Math.round(0.15 * selectedConnector.rate);
+
+          const pctEl = document.getElementById('liveBatteryPercent');
+          const nrgEl = document.getElementById('liveEnergyDelivered');
+          const costEl = document.getElementById('liveCostEstimated');
+          const ring = document.getElementById('chargingProgressRing');
+
+          if (pctEl) pctEl.textContent = Math.floor(currentBattery);
+          if (nrgEl) nrgEl.textContent = currentEnergy.toFixed(1) + ' kWh';
+          if (costEl) costEl.textContent = currentCost.toLocaleString('vi-VN') + ' đ';
+
+          if (ring) {
+            const strokeOffset = 415 - (415 * (currentBattery / 100));
+            ring.style.strokeDashoffset = strokeOffset;
+          }
+
+          const basePower = 215 + (Math.sin(Date.now() / 2000) * 12);
+          const pwrEl = document.getElementById('livePowerWatt');
+          if (pwrEl) pwrEl.textContent = basePower.toFixed(1) + ' kW';
+        }
+      }, 1200);
+    }
+
+    function stopChargingSession() {
+      playSound('stop');
+      if (chargingInterval) clearInterval(chargingInterval);
+      showToast(`Đã kết thúc phiên sạc: ${currentCost.toLocaleString('vi-VN')} đ`);
+      setTimeout(() => navigateTo('receipt'), 700);
+    }
+
+    let isLocked = true;
+    function toggleChargeLock() {
+      playSound('click');
+      isLocked = !isLocked;
+      const text = document.getElementById('lockBtnText');
+      if (text) text.textContent = isLocked ? 'Khóa đầu cắm' : 'Mở chốt sạc';
+      showToast(isLocked ? 'Đã khóa chốt cổng sạc an toàn' : 'Đã mở chốt cổng sạc');
+    }
+
+    function initCanvasPowerGraph() {
+      const canvas = document.getElementById('livePowerCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = 40;
+
+      let step = 0;
+      function renderWave() {
+        if (currentScreen !== 'charging') return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = '#00E599';
+
+        for (let x = 0; x < canvas.width; x++) {
+          const y = 20 + Math.sin((x + step) * 0.05) * 7 + Math.cos((x + step * 0.5) * 0.08) * 3;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        step += 2;
+        requestAnimationFrame(renderWave);
+      }
+      renderWave();
+    }
+
+    function confirmBooking() {
+      playSound('success');
+      showToast('Đặt chỗ thành công! Đã giữ trụ sạc A-01 trong 15 phút');
+      setTimeout(() => navigateTo('explore'), 1200);
+    }
+
+    function bookmarkStation() {
+      playSound('click');
+      const icon = document.getElementById('bookmarkIcon');
+      if (icon) {
+        icon.classList.toggle('fa-regular');
+        icon.classList.toggle('fa-solid');
+        icon.classList.toggle('text-amber-400');
+      }
+      showToast('Đã lưu trạm vào danh sách yêu thích');
+    }
+
+    function startNavigation() {
+      playSound('click');
+      showToast('Đang kết nối GPS dẫn đường tới trạm sạc gần nhất...');
+    }
+
+    function triggerVoiceSearch() {
+      playSound('click');
+      showToast('Đang lắng nghe: "Tìm trạm sạc VNEGREEN gần nhất"...');
+    }
+
+    function toggleCarLock() {
+      playSound('click');
+      isCarLocked = !isCarLocked;
+      const icon = document.getElementById('carLockIcon');
+      const label = document.getElementById('carLockLabel');
+      if (icon) icon.textContent = isCarLocked ? '🔒' : '🔓';
+      if (label) label.textContent = isCarLocked ? 'Khóa cửa' : 'Mở khóa';
+      showToast(isCarLocked ? 'Đã khóa cửa xe an toàn' : 'Đã mở khóa cửa xe');
+    }
+
+    function toggleAcClimate() {
+      playSound('click');
+      isAcOn = !isAcOn;
+      const icon = document.getElementById('carAcIcon');
+      const label = document.getElementById('carAcLabel');
+      if (label) label.textContent = isAcOn ? '21°C Bật' : 'Tắt AC';
+      showToast(isAcOn ? 'Điều hòa bật sẵn: 21°C' : 'Đã tắt điều hòa xe');
+    }
+
+    function triggerCarHorn() {
+      playSound('click');
+      showToast('Đang nháy đèn và còi định vị xe trong bãi');
+    }
+
+    function triggerOpenTrunk() {
+      playSound('click');
+      showToast('Đã mở cốp xe điện tử từ xa');
+    }
+
+    function triggerOpenChargePort() {
+      playSound('click');
+      showToast('Đã mở nắp cổng sạc DC — Đưa đầu cắm CCS 2 vào cổng!');
+    }
+
+    function toggleSentryMode() {
+      playSound('click');
+      isSentryOn = !isSentryOn;
+      const panel = document.getElementById('sentryModePanel');
+      const icon = document.getElementById('sentryIcon');
+      const label = document.getElementById('sentryLabel');
+      if (panel) panel.classList.toggle('hidden', !isSentryOn);
+      if (icon) icon.textContent = isSentryOn ? '🔴' : '📷';
+      if (label) label.textContent = isSentryOn ? 'Sentry BẬT' : 'Sentry 360°';
+      showToast(isSentryOn ? 'Sentry Mode 360° đã bật — Ghi hình toàn cảnh' : 'Đã tắt Sentry Mode');
+    }
+
+    function deflateTPMS() {
+      playSound('click');
+      const ids = ['tpmsFL', 'tpmsFR', 'tpmsRL', 'tpmsRR'];
+      const currentVals = ids.map(id => parseFloat(document.getElementById(id)?.textContent || 2.4));
+      const newVals = currentVals.map(v => Math.max(v - 0.1, 1.8).toFixed(1));
+      ids.forEach((id, i) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = newVals[i];
+          const val = parseFloat(newVals[i]);
+          el.className = `font-mono font-bold text-[10px] ${val < 2.0 ? 'text-amber-400' : 'text-emerald-400'}`;
+        }
+      });
+      showToast(`Đang xả khí lốp (TPMS) → ${newVals[0]} Bar`);
+    }
+
+    function selectPaymentMethod(method) {
+      playSound('click');
+      activePaymentMethod = method;
+      ['apple', 'google', 'napas'].forEach(m => {
+        const el = document.getElementById(`pm-${m}`);
+        if (el) {
+          el.classList.toggle('border-2', m === method);
+          el.classList.toggle('border-emerald-500', m === method);
+          el.classList.toggle('border', m !== method);
+          el.classList.toggle('border-slate-700', m !== method);
+        }
+      });
+      const labels = { apple: 'Apple Pay (•• 8899)', google: 'Google Pay (•• 2211)', napas: 'QR Napas 24/7' };
+      showToast(`Đã chọn: ${labels[method]}`);
+    }
+
+    // Simulate battery thermal changes
+    function simulateThermal(tempC) {
+      const display = document.getElementById('batteryTempDisplay');
+      const status = document.getElementById('batteryTempStatus');
+      const bar = document.getElementById('thermalBar');
+      const warning = document.getElementById('thermalWarningBanner');
+      const tempVal = document.getElementById('thermalTempValue');
+      if (display) display.textContent = `${tempC.toFixed(1)} °C`;
+      const pct = Math.min((tempC / 75) * 100, 100);
+      if (bar) bar.style.width = `${pct}%`;
+      if (bar) {
+        bar.className = `h-full rounded-full transition-all duration-700 ${
+          tempC < 35 ? 'bg-gradient-to-r from-emerald-500 to-teal-400' :
+          tempC < 50 ? 'bg-gradient-to-r from-amber-400 to-orange-500' :
+          'bg-gradient-to-r from-orange-500 to-rose-500'
+        }`;
+      }
+      if (tempC >= 42) {
+        if (warning) warning.classList.remove('hidden');
+        if (tempVal) tempVal.textContent = `${tempC.toFixed(0)}°C`;
+        if (status) { status.textContent = '⚠ Nhiệt độ cao — BMS làm mát khẩn cấp'; status.className = 'text-[9px] text-amber-400'; }
+      } else {
+        if (warning) warning.classList.add('hidden');
+        if (status) { status.textContent = '● Hệ thống tản nhiệt tối ưu'; status.className = 'text-[9px] text-emerald-400'; }
+      }
+    }
+
+    function applyVehicleToUI() {
+      const v = vehiclesData[currentVehicleKey];
+      if (!v) return;
+
+      const topVeh = document.getElementById('topVehicleLabel');
+      const topBat = document.getElementById('topBatteryLabel');
+      const mapName = document.getElementById('mapVehicleName');
+      const mapBattery = document.getElementById('mapVehicleBattery');
+      const ctrlName = document.getElementById('ctrlVehicleName');
+      const ctrlPlate = document.getElementById('ctrlLicensePlate');
+      const ctrlBattery = document.getElementById('ctrlBatteryPercent');
+      const ctrlRange = document.getElementById('ctrlRangeKm');
+      const liveBattery = document.getElementById('liveBatteryPercent');
+      const receiptVeh = document.getElementById('receiptVehicleText');
+      const bookVeh = document.getElementById('bookingVehicleSub');
+
+      if (topVeh) topVeh.textContent = v.name;
+      if (topBat) topBat.textContent = `${v.battery}%`;
+      if (mapName) mapName.textContent = v.name;
+      if (mapBattery) mapBattery.textContent = `| ${v.battery}% (${v.range} km)`;
+      if (ctrlName) ctrlName.textContent = v.name;
+      if (ctrlPlate) ctrlPlate.textContent = `Biển số: ${v.plate} • Pin ${v.capacity}`;
+      if (ctrlBattery) ctrlBattery.textContent = `${v.battery}%`;
+      if (ctrlRange) ctrlRange.textContent = `Ước tính ${v.range} km`;
+      if (liveBattery) liveBattery.textContent = v.battery;
+      if (receiptVeh) receiptVeh.textContent = `${v.name} (${v.plate})`;
+      if (bookVeh) bookVeh.textContent = `${v.name} (${v.plate})`;
+      currentBattery = v.battery;
+    }
+
+    function selectVehicle(key) {
+      playSound('click');
+      currentVehicleKey = key;
+      document.querySelectorAll('#screen-nfc [id^="vehicle-card-"]').forEach(el => {
+        el.classList.remove('border-2', 'border-emerald-500', 'bg-emerald-500/10');
+        el.classList.add('border', 'border-slate-800', 'bg-slate-900');
+      });
+
+      const card = document.getElementById(`vehicle-card-${key}`);
+      if (card) {
+        card.classList.add('border-2', 'border-emerald-500', 'bg-emerald-500/10');
+        card.classList.remove('border-slate-800', 'bg-slate-900');
+      }
+
+      applyVehicleToUI();
+      showToast(`Đã đồng bộ xe: ${vehiclesData[key].name}`);
+    }
+
+    function simulateNfcTap() {
+      playSound('success');
+      showToast('Đã đọc thẻ NFC! Bắt tay ISO 15118 thành công');
+      setTimeout(() => {
+        navigateTo('control');
+      }, 900);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('phoneToast');
+      const toastMsg = document.getElementById('toastMsg');
+      if (!toast || !toastMsg) return;
+
+      toastMsg.textContent = msg;
+      toast.classList.remove('-translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      applyVehicleToUI();
+    });
+
+    window.addEventListener('resize', () => {
+      if (map) map.invalidateSize();
+    });
+  </script>
+</body>
+</html>
