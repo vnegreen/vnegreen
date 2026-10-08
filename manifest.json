@@ -1,0 +1,39 @@
+{
+  "name": "VNEGREEN EV Super App",
+  "short_name": "VNEGREEN",
+  "description": "Hệ thống sạc xe điện thông minh 350kW — Tìm trạm, đặt chỗ, sạc Live 800V",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#080C15",
+  "theme_color": "#00E599",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "assets/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/adaptive-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["utilities", "navigation", "lifestyle"],
+  "screenshots": [
+    {
+      "src": "assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "VNEGREEN EV Charging Map"
+    }
+  ]
+}
